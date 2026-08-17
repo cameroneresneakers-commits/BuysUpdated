@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ERE Buy Sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#F6F7F9; --surface:#FFFFFF; --ink:#10151F; --ink-soft:#5B6472;
+    --line:#E5E8ED; --navy:#1B3A6B; --gold:#E2A33D; --green:#1F8A5F; --red:#C4392B; --amber:#B7791F;
+    --mono:'IBM Plex Mono', ui-monospace, monospace; --sans:'Inter', system-ui, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); -webkit-font-smoothing:antialiased;}
+  .hidden{display:none !important;}
+
+  input[type=text], input[type=number], input[type=date], select{
+    border:1px solid var(--line); border-radius:8px; padding:9px 11px; font-size:14px; font-family:var(--sans);
+    background:#fff; color:var(--ink);
+  }
+  input:focus, select:focus{outline:2px solid var(--navy); outline-offset:1px;}
+  .btn{ background:var(--navy); color:#fff; border:none; border-radius:8px; padding:9px 15px; font-size:13px; font-weight:600; cursor:pointer; font-family:var(--sans); white-space:nowrap; }
+  .btn:hover{background:#142c52;}
+  .btn-ghost{background:transparent; color:var(--navy); border:1px solid var(--line); border-radius:8px; padding:9px 15px; font-size:13px; font-weight:600; cursor:pointer; font-family:var(--sans);}
+  .btn-ghost:hover{background:#F0F2F5;}
+  .btn-sm{padding:6px 11px; font-size:12px; border-radius:7px;}
+
+  header{background:var(--surface); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:10;}
+  .header-inner{max-width:1220px; margin:0 auto; padding:0 20px; height:56px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;}
+  .brand{display:flex; align-items:center; gap:10px; flex:none;}
+  .brand-mark{width:22px; height:22px; background:var(--navy); border-radius:5px; position:relative; flex:none;}
+  .brand-mark::after{content:''; position:absolute; inset:5px; border:2px solid var(--gold); border-radius:2px;}
+  .brand-name{font-weight:700; font-size:14.5px; letter-spacing:-.01em;}
+  nav{display:flex; gap:2px; flex-wrap:wrap;}
+  nav button{ background:none; border:none; padding:8px 12px; font-size:13px; font-weight:500; color:var(--ink-soft); cursor:pointer; border-radius:7px; font-family:var(--sans); }
+  nav button.active{background:#EEF1F5; color:var(--ink); font-weight:600;}
+  .session-controls{display:flex; align-items:center; gap:8px; flex:none;}
+  .session-controls input[type=text]{width:110px; padding:6px 9px; font-size:12.5px;}
+
+  main{max-width:1220px; margin:0 auto; padding:28px 20px 60px;}
+  .page-title{font-size:19px; font-weight:700; margin:0 0 4px;}
+  .page-sub{font-size:13px; color:var(--ink-soft); margin:0 0 22px; line-height:1.5;}
+  .banner{ background:#FEFAE8; border:1px solid #EEDFA0; border-radius:10px; padding:12px 16px; font-size:12.5px; color:#7A5E14; margin-bottom:22px; line-height:1.5; }
+
+  .summary-row{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;}
+  .summary-card{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px 18px;}
+  .summary-label{font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-soft); margin:0 0 8px;}
+  .summary-value{font-family:var(--mono); font-size:20px; font-weight:600;}
+
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:12px; margin-bottom:20px; overflow:hidden;}
+  .card-head{padding:14px 18px; border-bottom:1px solid var(--line); font-size:13px; font-weight:600; display:flex; align-items:center; justify-content:space-between;}
+  .card-body{padding:16px 18px;}
+
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  th{ text-align:left; font-family:var(--mono); font-size:9.5px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-soft); font-weight:500; padding:8px 12px; border-bottom:2px solid var(--gold); background:#FBFAF6; white-space:nowrap; }
+  th.num, td.num{text-align:right;}
+  td{padding:8px 12px; border-bottom:1px solid var(--line); font-family:var(--mono); white-space:nowrap;}
+  td.label-cell{font-family:var(--sans); font-weight:600;}
+  tr.banner-row td{background:#FBFAF6; font-weight:700;}
+  tr.variant-row td.label-cell{padding-left:24px; font-weight:400; color:var(--ink-soft);}
+  tr:last-child td{border-bottom:none;}
+  .tag{font-family:var(--sans); font-size:9.5px; font-weight:600; padding:3px 7px; border-radius:5px; display:inline-block; white-space:nowrap;}
+  .tag-reorder{background:var(--red); color:#fff;}
+  .tag-low{background:#FBEBE8; color:var(--red);}
+  .tag-watch{background:#FEFAE8; color:#7A5E14;}
+  .tag-healthy{background:#EAF6EF; color:var(--green);}
+  .tag-nosales{background:#EEF1F5; color:var(--ink-soft);}
+  .tag-class{background:#EAF6EF; color:var(--green);}
+  .tag-class-picking{background:#FDF0E3; color:var(--amber);}
+  .empty-row td{text-align:center; color:var(--ink-soft); font-family:var(--sans); padding:32px;}
+
+  .form-row{display:flex; align-items:center; gap:12px; margin-bottom:12px;}
+  .form-row label{width:180px; font-size:13px; color:var(--ink-soft); flex:none;}
+  .form-row select, .form-row input{flex:1;}
+  .form-row .hint{font-size:11.5px; color:var(--ink-soft); margin-left:8px;}
+  .file-drop{ border:1.5px dashed var(--line); border-radius:10px; padding:22px; text-align:center; cursor:pointer; font-size:13px; color:var(--ink-soft); margin-bottom:16px; }
+  .file-drop:hover{border-color:var(--navy); color:var(--navy);}
+  .status-msg{font-size:13px; margin-top:12px; padding:10px 12px; border-radius:8px;}
+  .status-ok{background:#EAF6EF; color:var(--green);}
+  .status-err{background:#FBEBE8; color:var(--red);}
+  .yellow-cell{background:#FEFAE8; border-color:#EEDFA0;}
+  #import-input{display:none;}
+  #search-input{max-width:400px;}
+  .search-empty{color:var(--ink-soft); font-size:13px; padding:20px;}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <div class="header-inner">
+      <div class="brand"><div class="brand-mark"></div><span class="brand-name">Buy Sheet</span></div>
+      <nav>
+        <button data-page="replenish" class="active">Replenish Queue</button>
+        <button data-page="core">Core Sellers</button>
+        <button data-page="basesummary">Base Summary</button>
+        <button data-page="variant">Variant Detail</button>
+        <button data-page="search">SKU Search</button>
+        <button data-page="upload">Upload</button>
+        <button data-page="settings">Settings</button>
+      </nav>
+      <div class="session-controls">
+        <input type="text" id="your-name" placeholder="Your name" title="Used to label exports — not stored anywhere" />
+        <button class="btn-ghost btn-sm" id="import-btn">Import session</button>
+        <input type="file" id="import-input" accept="application/json" />
+        <button class="btn btn-sm" id="export-session-btn">Export session</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="banner">
+      Runs entirely in your browser — nothing is uploaded or saved anywhere. Refreshing clears everything.
+      Use <strong>Export session</strong> to save your data + settings, or the CSV export on each tab for a finished snapshot.
+      No Last Received or Brand data source exists yet, so both show as "—" — let me know if you get a file that carries them and I'll wire it in.
+    </div>
+
+    <!-- REPLENISH QUEUE -->
+    <section id="page-replenish">
+      <h1 class="page-title">Replenish Queue</h1>
+      <p class="page-sub">Action list — base SKUs that need buying, most-needed first, size variants nested beneath.</p>
+      <div class="summary-row" id="replenish-summary"></div>
+      <div class="card">
+        <div class="card-head">Buy List<button class="btn-ghost btn-sm" id="export-replenish-csv">Export CSV</button></div>
+        <table>
+          <thead><tr>
+            <th>Base / Variant SKU</th><th class="num">Available</th><th class="num">Incoming</th><th class="num">Net Avail</th>
+            <th class="num">30d Units</th><th class="num">90d Units</th><th class="num">Velocity/day</th>
+            <th class="num">Days Cover</th><th class="num">Need to Buy</th><th>Status</th><th>Brand</th>
+          </tr></thead>
+          <tbody id="replenish-table"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- CORE SELLERS -->
+    <section id="page-core" class="hidden">
+      <h1 class="page-title">Core Sellers</h1>
+      <p class="page-sub">Keep-in-stock watchlist — steady and accelerating winners. Not a buy list; there's no Need to Buy here.</p>
+      <div class="summary-row" id="core-summary"></div>
+      <div class="card">
+        <div class="card-head">Watchlist<button class="btn-ghost btn-sm" id="export-core-csv">Export CSV</button></div>
+        <table>
+          <thead><tr>
+            <th>Base / Variant SKU</th><th class="num">Available</th><th class="num">14d</th><th class="num">30d</th>
+            <th class="num">60d</th><th class="num">90d</th><th class="num">Daily Pace</th><th class="num">Momentum</th>
+            <th>Last Received</th><th>Class</th><th>Brand</th>
+          </tr></thead>
+          <tbody id="core-table"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- BASE SKU SUMMARY -->
+    <section id="page-basesummary" class="hidden">
+      <h1 class="page-title">Base SKU Summary</h1>
+      <p class="page-sub">Flat reference — every base SKU that's sold anything in the last 90 days, one row each, no nesting.</p>
+      <div class="card">
+        <div class="card-head">All Bases<button class="btn-ghost btn-sm" id="export-basesummary-csv">Export CSV</button></div>
+        <table>
+          <thead><tr>
+            <th>Base SKU</th><th class="num">Variants</th><th class="num">Available</th><th class="num">Incoming</th>
+            <th class="num">Net Avail</th><th class="num">30d</th><th class="num">90d</th><th class="num">Velocity/day</th>
+            <th class="num">Days Cover</th><th class="num">Need to Buy</th><th>Status</th><th>Brand</th>
+          </tr></thead>
+          <tbody id="basesummary-table"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- VARIANT DETAIL -->
+    <section id="page-variant" class="hidden">
+      <h1 class="page-title">Variant Detail</h1>
+      <p class="page-sub">The most granular view — every individual SKU/size that's sold anything, one row each.</p>
+      <div class="card">
+        <div class="card-head">All Variants<button class="btn-ghost btn-sm" id="export-variant-csv">Export CSV</button></div>
+        <table>
+          <thead><tr>
+            <th>SKU</th><th>Base SKU</th><th class="num">Available</th><th class="num">Incoming</th><th class="num">Net Avail</th>
+            <th class="num">14d</th><th class="num">30d</th><th class="num">60d</th><th class="num">90d</th>
+            <th class="num">Velocity/day</th><th class="num">Days Cover</th><th class="num">Need to Buy</th><th>Status</th><th>Brand</th>
+          </tr></thead>
+          <tbody id="variant-table"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SKU SEARCH -->
+    <section id="page-search" class="hidden">
+      <h1 class="page-title">SKU Search</h1>
+      <p class="page-sub">Pick a base SKU to pull its entries across every tab at once.</p>
+      <div class="form-row">
+        <label>Base SKU</label>
+        <input type="text" id="search-input" list="base-sku-list" placeholder="Start typing a base SKU…" />
+        <datalist id="base-sku-list"></datalist>
+      </div>
+      <div id="search-results"></div>
+    </section>
+
+    <!-- UPLOAD -->
+    <section id="page-upload" class="hidden">
+      <h1 class="page-title">Upload</h1>
+      <p class="page-sub">Upload the sales report — one row per sale/order line, with SKU, date, quantity, and (repeated per line) Available and Incoming.</p>
+      <div class="card">
+        <div class="card-body">
+          <p id="mode-summary" style="font-size:12.5px; color:var(--ink-soft); margin:0 0 14px;"></p>
+          <div class="file-drop" id="file-drop">
+            <div id="file-drop-label">Click to choose a CSV or XLSX file</div>
+            <input type="file" id="file-input" accept=".csv,.xlsx,.xls" style="display:none;" />
+          </div>
+          <div id="mapping-block" class="hidden"></div>
+          <button class="btn hidden" id="upload-submit">Upload</button>
+          <div id="upload-status"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="page-settings" class="hidden">
+      <h1 class="page-title">Settings</h1>
+      <p class="page-sub">Every yellow cell here drives every tab live — same as the Assumptions tab in the workbook.</p>
+
+      <div class="card">
+        <div class="card-head">Core Settings</div>
+        <div class="card-body">
+          <div class="form-row"><label>Cover target (days)</label><input type="number" class="yellow-cell" id="cover-target" style="max-width:90px;"/></div>
+          <div class="form-row"><label>Data anchor date</label><input type="date" class="yellow-cell" id="anchor-date" style="max-width:160px;"/><span class="hint">reference "today" for the day-window calcs</span></div>
+          <div class="form-row"><label>Bulk order threshold</label><input type="number" class="yellow-cell" id="bulk-threshold" style="max-width:90px;"/><span class="hint">lines at/above this many units excluded from demand totals</span></div>
+          <div class="form-row"><label>Negative-Available floor</label><input type="number" class="yellow-cell" id="neg-floor" style="max-width:90px;"/><span class="hint">SKUs at/below this Available are excluded entirely</span></div>
+          <div class="form-row"><label>Excluded from buy sheet</label><input type="text" class="yellow-cell" id="excluded-brands"/><span class="hint">comma-separated, matches anywhere in SKU</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">Core Sellers Thresholds</div>
+        <div class="card-body">
+          <div class="form-row"><label>Consistent: min 90d units</label><input type="number" class="yellow-cell" id="min-90d" style="max-width:90px;"/></div>
+          <div class="form-row"><label>Consistent: min 30v90 ratio</label><input type="number" step="0.05" class="yellow-cell" id="consistent-ratio" style="max-width:90px;"/></div>
+          <div class="form-row"><label>Picking Up: min 30v90 ratio</label><input type="number" step="0.05" class="yellow-cell" id="pickup-ratio-30" style="max-width:90px;"/></div>
+          <div class="form-row"><label>Picking Up: min 14v90 ratio</label><input type="number" step="0.05" class="yellow-cell" id="pickup-ratio-14" style="max-width:90px;"/></div>
+          <div class="form-row"><label>Picking Up: min 30d units</label><input type="number" class="yellow-cell" id="pickup-min-30d" style="max-width:90px;"/></div>
+        </div>
+      </div>
+
+      <div class="card" id="excluded-list-card">
+        <div class="card-head">Excluded SKUs (negative-Available floor)</div>
+        <div class="card-body" id="excluded-list-body" style="font-size:12.5px; color:var(--ink-soft);"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+const SIZE_SUFFIX_RE = /-\d{1,2}(\.[05])?[A-Za-z]?$/;
+const toBaseSku = s => (s||"").replace(SIZE_SUFFIX_RE,"");
+const todayStr = () => new Date().toISOString().slice(0,10);
+const daysBetween = (a,b) => Math.floor((a-b)/86400000);
+
+let appData = {
+  salesRows: [], // {sku, baseSku, date, units, available, incoming, brand}
+  settings: {
+    coverTarget: 45,
+    anchorDate: '',
+    bulkThreshold: 6,
+    negFloor: -20,
+    excludedBrands: 'ASICS',
+    min90d: 9,
+    consistentRatio: 0.6,
+    pickupRatio30: 1.25,
+    pickupRatio14: 1.5,
+    pickupMin30d: 6
+  }
+};
+let parsedFile = null;
+let computed = null; // cached compute() result
+
+// ---------- Nav ----------
+document.querySelectorAll('nav button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    ['replenish','core','basesummary','variant','search','upload','settings'].forEach(p=>{
+      document.getElementById('page-'+p).classList.toggle('hidden', p!==btn.dataset.page);
+    });
+    renderPage(btn.dataset.page);
+  });
+});
+
+function renderPage(page){
+  computed = compute();
+  if(page==='replenish') renderReplenish();
+  if(page==='core') renderCore();
+  if(page==='basesummary') renderBaseSummary();
+  if(page==='variant') renderVariant();
+  if(page==='search') renderSearchSetup();
+  if(page==='settings') renderSettings();
+}
+
+// ---------- Core computation engine ----------
+function compute(){
+  const s = appData.settings;
+  const anchor = new Date(s.anchorDate || todayStr());
+  const excluded = s.excludedBrands.split(',').map(x=>x.trim().toUpperCase()).filter(Boolean);
+  const isExcludedSku = sku => excluded.some(x=>x && sku.toUpperCase().includes(x));
+
+  // Group raw rows by SKU
+  const bySku = {};
+  appData.salesRows.forEach(r=>{
+    if(!bySku[r.sku]) bySku[r.sku] = {rows:[], available:null, incoming:null};
+    bySku[r.sku].rows.push(r);
+    if(r.available != null && !isNaN(r.available)) bySku[r.sku].available = r.available;
+    if(r.incoming != null && !isNaN(r.incoming)) bySku[r.sku].incoming = r.incoming;
+  });
+
+  const excludedList = [];
+  const variants = [];
+
+  Object.keys(bySku).forEach(sku=>{
+    const g = bySku[sku];
+    const available = g.available || 0;
+    const incoming = g.incoming || 0;
+
+    if(available <= s.negFloor){ excludedList.push({sku, available, reason:'negative Available floor'}); return; }
+    if(isExcludedSku(sku)){ return; }
+
+    const sumWindow = (days) => g.rows
+      .filter(r => r.units < s.bulkThreshold) // exclude bulk lines from demand
+      .filter(r => { const d = daysBetween(anchor, r.date); return d>=0 && d<days; })
+      .reduce((sum,r)=>sum+r.units, 0);
+
+    const d14 = sumWindow(14), d30 = sumWindow(30), d60 = sumWindow(60), d90 = sumWindow(90);
+    if(d90 <= 0) return; // "sold anything" filter
+
+    const netAvailable = available + incoming;
+    const velocity = Math.round((d90/90)*100)/100;
+    const daysCover = velocity===0 ? null : Math.round(netAvailable/velocity);
+    const needToBuy = velocity===0 ? 0 : Math.max(0, Math.round(velocity*s.coverTarget - netAvailable));
+    let status = velocity===0 ? 'No sales' : (netAvailable < velocity*s.coverTarget ? 'LOW' : (netAvailable < velocity*60 ? 'Watch' : 'Healthy'));
+
+    const dailyPace = velocity;
+    const momentum = d90===0 ? 0 : Math.round(((d30/30)/(d90/90))*100)/100;
+
+    const qualifiesConsistent = d90>=s.min90d && d14>0 && d30>0 && d60>0 && (d30/30) >= s.consistentRatio*(d90/90);
+    const qualifiesPickup = (((d30/30) >= s.pickupRatio30*(d90/90)) || ((d14/14) >= s.pickupRatio14*(d90/90))) && d30>=s.pickupMin30d;
+    let cls = '';
+    if(qualifiesConsistent && qualifiesPickup) cls = 'Consistent + Rising';
+    else if(qualifiesPickup) cls = 'Picking Up';
+    else if(qualifiesConsistent) cls = 'Consistent';
+
+    const brand = g.rows.find(r=>r.brand)?.brand || '—';
+
+    variants.push({
+      sku, baseSku: toBaseSku(sku), available, incoming, netAvailable,
+      d14, d30, d60, d90, velocity, daysCover, needToBuy, status,
+      dailyPace, momentum, class: cls, brand, lastReceived: '—'
+    });
+  });
+
+  // Base aggregation — ALL variants (Replenish Queue / Base SKU Summary)
+  const basesFull = {};
+  variants.forEach(v=>{
+    if(!basesFull[v.baseSku]) basesFull[v.baseSku] = {variants:[], brand:v.brand};
+    basesFull[v.baseSku].variants.push(v);
+  });
+  const baseRowsFull = Object.keys(basesFull).map(base=>{
+    const vs = basesFull[base].variants;
+    const available = vs.reduce((s,v)=>s+v.available,0);
+    const incoming = vs.reduce((s,v)=>s+v.incoming,0);
+    const netAvailable = available+incoming;
+    const d30 = vs.reduce((s,v)=>s+v.d30,0);
+    const d90 = vs.reduce((s,v)=>s+v.d90,0);
+    const velocity = Math.round((d90/90)*100)/100;
+    const daysCover = velocity===0 ? null : Math.round(netAvailable/velocity);
+    const needToBuy = velocity===0 ? 0 : Math.max(0, Math.round(velocity*appData.settings.coverTarget - netAvailable));
+    const status = velocity===0 ? 'No sales' : (needToBuy>0 ? 'LOW' : (vs.some(v=>v.status==='LOW') ? 'LOW' : (netAvailable < velocity*60 ? 'Watch' : 'Healthy')));
+    return {baseSku:base, variantCount:vs.length, available, incoming, netAvailable, d30, d90, velocity, daysCover, needToBuy, status, brand: basesFull[base].brand, variants: vs};
+  });
+
+  // Base aggregation — QUALIFYING variants only (Core Sellers)
+  const basesQual = {};
+  variants.filter(v=>v.class).forEach(v=>{
+    if(!basesQual[v.baseSku]) basesQual[v.baseSku] = {variants:[], brand:v.brand};
+    basesQual[v.baseSku].variants.push(v);
+  });
+  const baseRowsQual = Object.keys(basesQual).map(base=>{
+    const vs = basesQual[base].variants;
+    const available = vs.reduce((s,v)=>s+v.available,0);
+    const d14 = vs.reduce((s,v)=>s+v.d14,0);
+    const d30 = vs.reduce((s,v)=>s+v.d30,0);
+    const d60 = vs.reduce((s,v)=>s+v.d60,0);
+    const d90 = vs.reduce((s,v)=>s+v.d90,0);
+    const dailyPace = Math.round((d90/90)*100)/100;
+    const momentum = d90===0 ? 0 : Math.round(((d30/30)/(d90/90))*100)/100;
+    const anyRising = vs.some(v=>v.class==='Consistent + Rising');
+    const cls = anyRising ? 'Consistent + Rising' : (vs.some(v=>v.class==='Picking Up') ? 'Picking Up' : 'Consistent');
+    return {baseSku:base, available, d14, d30, d60, d90, dailyPace, momentum, class: cls, brand: basesQual[base].brand, lastReceived:'—', variants: vs};
+  });
+
+  return {variants, baseRowsFull, baseRowsQual, excludedList};
+}
+
+// ---------- Renderers ----------
+const STATUS_CLASS = {LOW:'tag-low', Watch:'tag-watch', Healthy:'tag-healthy', 'No sales':'tag-nosales'};
+
+function renderReplenish(){
+  let bases = computed.baseRowsFull.filter(b=>b.needToBuy>0);
+  bases.sort((a,b)=>b.needToBuy-a.needToBuy);
+
+  const totalNeed = bases.reduce((s,b)=>s+b.needToBuy,0);
+  document.getElementById('replenish-summary').innerHTML = `
+    <div class="summary-card"><p class="summary-label">Bases to Reorder</p><p class="summary-value">${bases.length}</p></div>
+    <div class="summary-card"><p class="summary-label">Total Units Needed</p><p class="summary-value">${totalNeed.toLocaleString()}</p></div>
+    <div class="summary-card"><p class="summary-label">Variants Tracked</p><p class="summary-value">${computed.variants.length}</p></div>
+    <div class="summary-card"><p class="summary-label">Excluded (data quality)</p><p class="summary-value">${computed.excludedList.length}</p></div>`;
+
+  const tbody = document.getElementById('replenish-table');
+  tbody.innerHTML = '';
+  if(bases.length===0){
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="11">No reorders needed with current data, or no data uploaded yet.</td></tr>';
+    return;
+  }
+  bases.forEach(b=>{
+    tbody.appendChild(rowHtml([b.baseSku, b.available, b.incoming, b.netAvailable, b.d30, b.d90, b.velocity.toFixed(2), b.daysCover??'—', b.needToBuy, tagHtml('◄ REORDER','tag-reorder'), b.brand], true));
+    const vs = [...b.variants].sort((x,y)=>y.needToBuy-x.needToBuy);
+    vs.forEach(v=>{
+      tbody.appendChild(rowHtml([v.sku, v.available, v.incoming, v.netAvailable, v.d30, v.d90, v.velocity.toFixed(2), v.daysCover??'—', v.needToBuy, tagHtml(v.status, STATUS_CLASS[v.status]), v.brand], false));
+    });
+  });
+}
+
+function renderCore(){
+  let bases = [...computed.baseRowsQual];
+  bases.sort((a,b)=>b.d90-a.d90);
+
+  document.getElementById('core-summary').innerHTML = `
+    <div class="summary-card"><p class="summary-label">Core Bases</p><p class="summary-value">${bases.length}</p></div>
+    <div class="summary-card"><p class="summary-label">Consistent + Rising</p><p class="summary-value">${bases.filter(b=>b.class==='Consistent + Rising').length}</p></div>
+    <div class="summary-card"><p class="summary-label">Picking Up</p><p class="summary-value">${bases.filter(b=>b.class==='Picking Up').length}</p></div>
+    <div class="summary-card"><p class="summary-label">Consistent</p><p class="summary-value">${bases.filter(b=>b.class==='Consistent').length}</p></div>`;
+
+  const tbody = document.getElementById('core-table');
+  tbody.innerHTML = '';
+  if(bases.length===0){
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="11">No qualifying core sellers with current data.</td></tr>';
+    return;
+  }
+  bases.forEach(b=>{
+    const clsTag = b.class==='Consistent + Rising' || b.class==='Consistent' ? 'tag-class' : 'tag-class-picking';
+    tbody.appendChild(rowHtml([b.baseSku, b.available, b.d14, b.d30, b.d60, b.d90, b.dailyPace.toFixed(2), b.momentum.toFixed(2), b.lastReceived, tagHtml(b.class, clsTag), b.brand], true));
+    const vs = [...b.variants].sort((x,y)=>y.d30-x.d30);
+    vs.forEach(v=>{
+      const vClsTag = v.class==='Consistent + Rising' || v.class==='Consistent' ? 'tag-class' : 'tag-class-picking';
+      tbody.appendChild(rowHtml([v.sku, v.available, v.d14, v.d30, v.d60, v.d90, v.dailyPace.toFixed(2), v.momentum.toFixed(2), v.lastReceived, tagHtml(v.class, vClsTag), v.brand], false));
+    });
+  });
+}
+
+function renderBaseSummary(){
+  let bases = [...computed.baseRowsFull];
+  bases.sort((a,b)=>b.d90-a.d90);
+  const tbody = document.getElementById('basesummary-table');
+  tbody.innerHTML = '';
+  if(bases.length===0){
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="12">No data yet.</td></tr>';
+    return;
+  }
+  bases.forEach(b=>{
+    tbody.appendChild(rowHtml([b.baseSku, b.variantCount, b.available, b.incoming, b.netAvailable, b.d30, b.d90, b.velocity.toFixed(2), b.daysCover??'—', b.needToBuy, tagHtml(b.status, STATUS_CLASS[b.status]), b.brand], false, true));
+  });
+}
+
+function renderVariant(){
+  let vs = [...computed.variants];
+  vs.sort((a,b)=>b.d90-a.d90);
+  const tbody = document.getElementById('variant-table');
+  tbody.innerHTML = '';
+  if(vs.length===0){
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="14">No data yet.</td></tr>';
+    return;
+  }
+  vs.forEach(v=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="label-cell">${v.sku}</td><td>${v.baseSku}</td>
+      <td class="num">${v.available.toLocaleString()}</td><td class="num">${v.incoming.toLocaleString()}</td>
+      <td class="num">${v.netAvailable.toLocaleString()}</td>
+      <td class="num">${v.d14}</td><td class="num">${v.d30}</td><td class="num">${v.d60}</td><td class="num">${v.d90}</td>
+      <td class="num">${v.velocity.toFixed(2)}</td><td class="num">${v.daysCover??'—'}</td><td class="num">${v.needToBuy}</td>
+      <td>${tagHtml(v.status, STATUS_CLASS[v.status])}</td><td>${v.brand}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function tagHtml(label, cls){ return `<span class="tag ${cls}">${label}</span>`; }
+function rowHtml(cells, isBanner, flat){
+  const tr = document.createElement('tr');
+  if(isBanner) tr.className='banner-row'; else if(!flat) tr.className='variant-row';
+  tr.innerHTML = cells.map((c,i)=>{
+    const isNum = typeof c === 'number';
+    const cls = i===0 ? 'label-cell' : (isNum ? 'num' : '');
+    return `<td class="${cls}">${isNum ? c.toLocaleString() : c}</td>`;
+  }).join('');
+  return tr;
+}
+
+// ---------- CSV export ----------
+function tableToCsv(tableId){
+  const rows = [];
+  const tbody = document.getElementById(tableId);
+  const headerCells = tbody ? tbody.closest('table').querySelectorAll('thead th') : [];
+  rows.push(Array.from(headerCells).map(h=>h.textContent.trim()).join(','));
+  document.querySelectorAll(`#${tableId} tr`).forEach(tr=>{
+    const cells = Array.from(tr.querySelectorAll('td')).map(td=>{
+      let t = td.textContent.trim().replace(/"/g,'""');
+      return t.includes(',') ? `"${t}"` : t;
+    });
+    if(cells.length) rows.push(cells.join(','));
+  });
+  return rows.join('\n');
+}
+document.getElementById('export-replenish-csv').addEventListener('click', ()=> downloadFile(tableToCsv('replenish-table'), `replenish-queue-${todayStr()}.csv`, 'text/csv'));
+document.getElementById('export-core-csv').addEventListener('click', ()=> downloadFile(tableToCsv('core-table'), `core-sellers-${todayStr()}.csv`, 'text/csv'));
+document.getElementById('export-basesummary-csv').addEventListener('click', ()=> downloadFile(tableToCsv('basesummary-table'), `base-sku-summary-${todayStr()}.csv`, 'text/csv'));
+document.getElementById('export-variant-csv').addEventListener('click', ()=> downloadFile(tableToCsv('variant-table'), `variant-detail-${todayStr()}.csv`, 'text/csv'));
+
+// ---------- SKU Search ----------
+function renderSearchSetup(){
+  const list = document.getElementById('base-sku-list');
+  list.innerHTML = '';
+  computed.baseRowsFull.forEach(b=>{
+    const o = document.createElement('option'); o.value = b.baseSku; list.appendChild(o);
+  });
+  renderSearchResults();
+}
+document.getElementById('search-input').addEventListener('input', renderSearchResults);
+
+function renderSearchResults(){
+  const q = document.getElementById('search-input').value.trim();
+  const el = document.getElementById('search-results');
+  if(!q){ el.innerHTML = '<p class="search-empty">Pick a base SKU from the dropdown to pull its entries across every tab.</p>'; return; }
+
+  const full = computed.baseRowsFull.find(b=>b.baseSku===q);
+  const qual = computed.baseRowsQual.find(b=>b.baseSku===q);
+
+  let html = '';
+  html += `<div class="card"><div class="card-head">Replenish Queue</div><table><thead><tr><th>Base/Variant SKU</th><th class="num">Available</th><th class="num">Incoming</th><th class="num">Net Avail</th><th class="num">30d</th><th class="num">90d</th><th class="num">Velocity</th><th class="num">Days Cover</th><th class="num">Need to Buy</th><th>Status</th><th>Brand</th></tr></thead><tbody>`;
+  if(full && full.needToBuy>0){
+    html += rowToHtmlString([full.baseSku, full.available, full.incoming, full.netAvailable, full.d30, full.d90, full.velocity.toFixed(2), full.daysCover??'—', full.needToBuy, tagHtml('◄ REORDER','tag-reorder'), full.brand], true);
+    [...full.variants].sort((x,y)=>y.needToBuy-x.needToBuy).forEach(v=>{
+      html += rowToHtmlString([v.sku, v.available, v.incoming, v.netAvailable, v.d30, v.d90, v.velocity.toFixed(2), v.daysCover??'—', v.needToBuy, tagHtml(v.status, STATUS_CLASS[v.status]), v.brand], false);
+    });
+  } else {
+    html += `<tr class="empty-row"><td colspan="11">Not in the Replenish Queue — no reorder needed.</td></tr>`;
+  }
+  html += `</tbody></table></div>`;
+
+  html += `<div class="card"><div class="card-head">Core Sellers</div><table><thead><tr><th>Base/Variant SKU</th><th class="num">Available</th><th class="num">14d</th><th class="num">30d</th><th class="num">60d</th><th class="num">90d</th><th class="num">Daily Pace</th><th class="num">Momentum</th><th>Last Received</th><th>Class</th><th>Brand</th></tr></thead><tbody>`;
+  if(qual){
+    const clsTag = qual.class==='Consistent + Rising' || qual.class==='Consistent' ? 'tag-class' : 'tag-class-picking';
+    html += rowToHtmlString([qual.baseSku, qual.available, qual.d14, qual.d30, qual.d60, qual.d90, qual.dailyPace.toFixed(2), qual.momentum.toFixed(2), qual.lastReceived, tagHtml(qual.class, clsTag), qual.brand], true);
+    [...qual.variants].sort((x,y)=>y.d30-x.d30).forEach(v=>{
+      const vClsTag = v.class==='Consistent + Rising' || v.class==='Consistent' ? 'tag-class' : 'tag-class-picking';
+      html += rowToHtmlString([v.sku, v.available, v.d14, v.d30, v.d60, v.d90, v.dailyPace.toFixed(2), v.momentum.toFixed(2), v.lastReceived, tagHtml(v.class, vClsTag), v.brand], false);
+    });
+  } else {
+    html += `<tr class="empty-row"><td colspan="11">No qualifying core-seller variants for this base.</td></tr>`;
+  }
+  html += `</tbody></table></div>`;
+
+  html += `<div class="card"><div class="card-head">Base SKU Summary</div><table><thead><tr><th>Base SKU</th><th class="num">Variants</th><th class="num">Available</th><th class="num">Incoming</th><th class="num">Net Avail</th><th class="num">30d</th><th class="num">90d</th><th class="num">Velocity</th><th class="num">Days Cover</th><th class="num">Need to Buy</th><th>Status</th><th>Brand</th></tr></thead><tbody>`;
+  html += full ? rowToHtmlString([full.baseSku, full.variantCount, full.available, full.incoming, full.netAvailable, full.d30, full.d90, full.velocity.toFixed(2), full.daysCover??'—', full.needToBuy, tagHtml(full.status, STATUS_CLASS[full.status]), full.brand], false, true) : `<tr class="empty-row"><td colspan="12">No match.</td></tr>`;
+  html += `</tbody></table></div>`;
+
+  html += `<div class="card"><div class="card-head">Variant Detail</div><table><thead><tr><th>SKU</th><th>Base SKU</th><th class="num">Available</th><th class="num">Incoming</th><th class="num">Net Avail</th><th class="num">14d</th><th class="num">30d</th><th class="num">60d</th><th class="num">90d</th><th class="num">Velocity</th><th class="num">Days Cover</th><th class="num">Need to Buy</th><th>Status</th><th>Brand</th></tr></thead><tbody>`;
+  if(full){
+    [...full.variants].sort((x,y)=>y.d90-x.d90).forEach(v=>{
+      html += `<tr><td class="label-cell">${v.sku}</td><td>${v.baseSku}</td><td class="num">${v.available}</td><td class="num">${v.incoming}</td><td class="num">${v.netAvailable}</td><td class="num">${v.d14}</td><td class="num">${v.d30}</td><td class="num">${v.d60}</td><td class="num">${v.d90}</td><td class="num">${v.velocity.toFixed(2)}</td><td class="num">${v.daysCover??'—'}</td><td class="num">${v.needToBuy}</td><td>${tagHtml(v.status, STATUS_CLASS[v.status])}</td><td>${v.brand}</td></tr>`;
+    });
+  } else {
+    html += `<tr class="empty-row"><td colspan="14">No match.</td></tr>`;
+  }
+  html += `</tbody></table></div>`;
+
+  el.innerHTML = html;
+}
+
+function rowToHtmlString(cells, isBanner, flat){
+  const cls = isBanner ? 'banner-row' : (flat ? '' : 'variant-row');
+  const tds = cells.map((c,i)=>{
+    const isNum = typeof c === 'number';
+    const tdCls = i===0 ? 'label-cell' : (isNum ? 'num' : '');
+    return `<td class="${tdCls}">${isNum ? c.toLocaleString() : c}</td>`;
+  }).join('');
+  return `<tr class="${cls}">${tds}</tr>`;
+}
+
+// ---------- Upload ----------
+function resetUploadForm(){
+  parsedFile = null;
+  document.getElementById('file-drop-label').textContent = 'Click to choose a CSV or XLSX file';
+  document.getElementById('mapping-block').classList.add('hidden');
+  document.getElementById('upload-submit').classList.add('hidden');
+  document.getElementById('upload-status').textContent = '';
+  document.getElementById('file-input').value = '';
+}
+function renderModeSummary(){
+  document.getElementById('mode-summary').textContent = `${appData.salesRows.length} transaction rows currently loaded, covering ${new Set(appData.salesRows.map(r=>r.sku)).size} SKUs.`;
+}
+
+document.getElementById('file-drop').addEventListener('click', ()=> document.getElementById('file-input').click());
+document.getElementById('file-input').addEventListener('change', async e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  document.getElementById('file-drop-label').textContent = file.name;
+  parsedFile = await parseFile(file);
+  renderMapping();
+});
+
+async function parseFile(file){
+  const isCsv = file.name.toLowerCase().endsWith('.csv');
+  if(isCsv){
+    const text = await file.text();
+    const result = Papa.parse(text, {header:true, skipEmptyLines:true});
+    return { headers: result.meta.fields || [], rows: result.data, fileName:file.name };
+  }
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, {type:'array'});
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet, {defval:''});
+  const headers = rows.length ? Object.keys(rows[0]) : [];
+  return { headers, rows, fileName:file.name };
+}
+
+const FIELDS = ['sku','date','units','available','incoming','brand'];
+function guessMapping(headers){
+  const auto = {}; FIELDS.forEach(f=>auto[f]='');
+  headers.forEach(h=>{
+    const l = h.toLowerCase();
+    if(!auto.sku && (l.includes('sku')||l.includes('item'))) auto.sku=h;
+    if(!auto.date && l.includes('date')) auto.date=h;
+    if(!auto.units && l.includes('unit')) auto.units=h;
+    if(!auto.available && l.includes('avail')) auto.available=h;
+    if(!auto.incoming && (l.includes('incoming')||l.includes('on order')||l.includes('on-order'))) auto.incoming=h;
+    if(!auto.brand && l.includes('brand')) auto.brand=h;
+  });
+  return auto;
+}
+
+let currentMapping = {};
+function renderMapping(){
+  currentMapping = guessMapping(parsedFile.headers);
+  const block = document.getElementById('mapping-block');
+  block.classList.remove('hidden');
+  block.innerHTML = `<p style="font-size:13px; color:var(--ink-soft); margin:4px 0 14px;">${parsedFile.rows.length} rows detected. Confirm column mapping (Brand is optional):</p>`;
+  FIELDS.forEach(f=>{
+    const row = document.createElement('div');
+    row.className = 'form-row';
+    const opts = ['<option value="">— skip —</option>']
+      .concat(parsedFile.headers.map(h=>`<option value="${h}" ${currentMapping[f]===h?'selected':''}>${h}</option>`));
+    row.innerHTML = `<label>${f}${f==='brand'?' (optional)':''}</label><select data-field="${f}">${opts.join('')}</select>`;
+    block.appendChild(row);
+  });
+  block.querySelectorAll('select').forEach(sel=>{
+    sel.addEventListener('change', ()=> currentMapping[sel.dataset.field] = sel.value);
+  });
+  document.getElementById('upload-submit').classList.remove('hidden');
+}
+
+function normalizeDate(v){
+  if(!v) return null;
+  const d = new Date(v);
+  if(!isNaN(d.getTime())) return d;
+  return null;
+}
+
+document.getElementById('upload-submit').addEventListener('click', ()=>{
+  if(!parsedFile){ showUploadStatus('Choose a file first.', false); return; }
+  const required = ['sku','date','units','available','incoming'];
+  if(required.some(f=>!currentMapping[f])){
+    showUploadStatus('Map SKU, date, units, available, and incoming (brand is optional).', false);
+    return;
+  }
+  let count = 0;
+  let maxDate = null;
+  parsedFile.rows.forEach(r=>{
+    const sku = String(r[currentMapping.sku]||'').trim();
+    const date = normalizeDate(r[currentMapping.date]);
+    const units = Number(r[currentMapping.units]);
+    const available = Number(r[currentMapping.available]);
+    const incoming = Number(r[currentMapping.incoming]);
+    const brand = currentMapping.brand ? String(r[currentMapping.brand]||'').trim() : '';
+    if(!sku || !date || isNaN(units)) return;
+    appData.salesRows.push({sku, baseSku:toBaseSku(sku), date, units, available: isNaN(available)?null:available, incoming: isNaN(incoming)?null:incoming, brand});
+    if(!maxDate || date>maxDate) maxDate = date;
+    count++;
+  });
+  if(maxDate && !appData.settings.anchorDate){
+    appData.settings.anchorDate = maxDate.toISOString().slice(0,10);
+  }
+  showUploadStatus(`Loaded ${count} rows.`, true);
+  resetUploadForm();
+  renderModeSummary();
+});
+
+function showUploadStatus(msg, ok){
+  const el = document.getElementById('upload-status');
+  el.className = 'status-msg ' + (ok?'status-ok':'status-err');
+  el.textContent = msg;
+}
+
+// ---------- Settings ----------
+function renderSettings(){
+  const s = appData.settings;
+  document.getElementById('cover-target').value = s.coverTarget;
+  document.getElementById('anchor-date').value = s.anchorDate || todayStr();
+  document.getElementById('bulk-threshold').value = s.bulkThreshold;
+  document.getElementById('neg-floor').value = s.negFloor;
+  document.getElementById('excluded-brands').value = s.excludedBrands;
+  document.getElementById('min-90d').value = s.min90d;
+  document.getElementById('consistent-ratio').value = s.consistentRatio;
+  document.getElementById('pickup-ratio-30').value = s.pickupRatio30;
+  document.getElementById('pickup-ratio-14').value = s.pickupRatio14;
+  document.getElementById('pickup-min-30d').value = s.pickupMin30d;
+
+  const bind = (id, fn) => document.getElementById(id).oninput = e => { fn(e.target.value); computed = compute(); };
+  bind('cover-target', v=> s.coverTarget=Number(v)||0);
+  bind('anchor-date', v=> s.anchorDate=v);
+  bind('bulk-threshold', v=> s.bulkThreshold=Number(v)||0);
+  bind('neg-floor', v=> s.negFloor=Number(v));
+  bind('excluded-brands', v=> s.excludedBrands=v);
+  bind('min-90d', v=> s.min90d=Number(v)||0);
+  bind('consistent-ratio', v=> s.consistentRatio=Number(v)||0);
+  bind('pickup-ratio-30', v=> s.pickupRatio30=Number(v)||0);
+  bind('pickup-ratio-14', v=> s.pickupRatio14=Number(v)||0);
+  bind('pickup-min-30d', v=> s.pickupMin30d=Number(v)||0);
+
+  const listEl = document.getElementById('excluded-list-body');
+  if(computed.excludedList.length===0){
+    listEl.textContent = 'None currently excluded.';
+  } else {
+    listEl.innerHTML = computed.excludedList.map(e=>`${e.sku} (Available: ${e.available})`).join('<br/>');
+  }
+}
+
+// ---------- Session export / import ----------
+function downloadFile(content, filename, mime){
+  const blob = new Blob([content], {type:mime});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+document.getElementById('export-session-btn').addEventListener('click', ()=>{
+  downloadFile(JSON.stringify(appData, null, 2), `ere-buysheet-session-${todayStr()}.json`, 'application/json');
+});
+document.getElementById('import-btn').addEventListener('click', ()=> document.getElementById('import-input').click());
+document.getElementById('import-input').addEventListener('change', async e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  try{
+    const parsed = JSON.parse(await file.text());
+    appData.salesRows = (parsed.salesRows || []).map(r=>({...r, date: new Date(r.date)}));
+    appData.settings = parsed.settings || appData.settings;
+    computed = compute();
+    renderPage('replenish');
+    document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+    document.querySelector('nav button[data-page="replenish"]').classList.add('active');
+    ['replenish','core','basesummary','variant','search','upload','settings'].forEach(p=>{
+      document.getElementById('page-'+p).classList.toggle('hidden', p!=='replenish');
+    });
+    renderModeSummary();
+  }catch(err){ alert("That file doesn't look like a valid session export."); }
+  e.target.value = '';
+});
+
+// ---------- Boot ----------
+renderModeSummary();
+renderPage('replenish');
+</script>
+</body>
+</html>
